@@ -1,0 +1,461 @@
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  getNotes,
+  createNote,
+  updateNote,
+  deleteNote,
+} from "../api";
+
+export default function Notes() {
+  const navigate = useNavigate();
+
+  const user = JSON.parse(
+    localStorage.getItem("notes_user") || "{}"
+  );
+
+  const [notes, setNotes] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [query, setQuery] = useState("");
+  const [status, setStatus] = useState("");
+
+  // Load notes
+  async function load() {
+    try {
+      const data = await getNotes();
+
+      setNotes(data);
+
+      setSelected((current) => {
+        if (current && current._id) {
+          return (
+            data.find(
+              (note) => note._id === current._id
+            ) || null
+          );
+        }
+
+        return data[0] || null;
+      });
+    } catch (error) {
+      console.error("Failed to load notes:", error);
+      localStorage.clear();
+      navigate("/login");
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  // Search notes
+  const filtered = useMemo(() => {
+    const search = query.toLowerCase().trim();
+
+    return notes.filter((note) =>
+      `${note.title || ""} ${note.content || ""}`
+        .toLowerCase()
+        .includes(search)
+    );
+  }, [notes, query]);
+
+  // Create NEW note
+  // This only opens an empty editor.
+  function newNote() {
+    setSelected({
+      _id: null,
+      title: "",
+      content: "",
+      updatedAt: new Date(),
+      isNew: true,
+    });
+
+    setStatus("New note");
+  }
+
+  // Update selected note locally
+  function updateSelected(field, value) {
+    setSelected((current) => {
+      if (!current) return null;
+
+      return {
+        ...current,
+        [field]: value,
+      };
+    });
+
+    setStatus("Unsaved changes");
+  }
+
+  // Save note
+  async function save() {
+    if (!selected) return;
+
+    const title = selected.title.trim();
+    const content = selected.content.trim();
+
+    if (!title && !content) {
+      setStatus("Enter a title or note first");
+      return;
+    }
+
+    try {
+      setStatus("Saving...");
+
+      // NEW NOTE
+      if (!selected._id || selected.isNew) {
+        const data = await createNote(
+          title,
+          content
+        );
+
+        setNotes((prev) => [data, ...prev]);
+        setSelected(data);
+      }
+
+      // EXISTING NOTE
+      else {
+        const data = await updateNote(
+          selected._id,
+          {
+            title,
+            content,
+          }
+        );
+
+        setNotes((prev) =>
+          prev.map((note) =>
+            note._id === data._id
+              ? data
+              : note
+          )
+        );
+
+        setSelected(data);
+      }
+
+      setStatus("Saved");
+
+      setTimeout(() => {
+        setStatus("");
+      }, 1400);
+    } catch (error) {
+      console.error("Failed to save note:", error);
+      setStatus("Save failed");
+    }
+  }
+
+  // Delete note
+  async function remove() {
+    if (!selected) return;
+
+    // If it is a new unsaved note,
+    // simply close the editor.
+    if (!selected._id) {
+      setSelected(notes[0] || null);
+      setStatus("");
+      return;
+    }
+
+    if (!window.confirm("Delete this note?")) {
+      return;
+    }
+
+    try {
+      await deleteNote(selected._id);
+
+      const remaining = notes.filter(
+        (note) => note._id !== selected._id
+      );
+
+      setNotes(remaining);
+      setSelected(remaining[0] || null);
+      setStatus("");
+    } catch (error) {
+      console.error("Failed to delete note:", error);
+    }
+  }
+
+  // Logout
+  function logout() {
+    localStorage.clear();
+    navigate("/login");
+  }
+
+  return (
+    <div className="notes-app-shell">
+
+      {/* ================= SIDEBAR ================= */}
+
+      <aside className="notes-sidebar">
+
+        <div className="app-logo">
+          <span>N</span>
+          <strong>NoteFlow</strong>
+        </div>
+
+        <button
+          className="new-note-button"
+          onClick={newNote}
+        >
+          ＋ New note
+        </button>
+
+        <div className="workspace-label">
+          WORKSPACE
+        </div>
+
+        <button className="all-notes-button">
+          ▤ All notes <b>{notes.length}</b>
+        </button>
+
+        <div className="sidebar-bottom">
+
+          <div className="user-profile">
+
+            <div className="avatar">
+              {(user.name || "U")[0].toUpperCase()}
+            </div>
+
+            <div>
+              <strong>
+                {user.name || "User"}
+              </strong>
+
+              <small>
+                {user.email || ""}
+              </small>
+            </div>
+
+            <button
+              onClick={logout}
+              title="Log out"
+            >
+              ↪
+            </button>
+
+          </div>
+
+        </div>
+
+      </aside>
+
+      {/* ================= MAIN ================= */}
+
+      <main className="notes-content">
+
+        {/* Top bar */}
+
+        <header className="notes-topbar">
+
+          <div>
+            <p className="eyebrow">
+              YOUR WORKSPACE
+            </p>
+
+            <h1>All notes</h1>
+          </div>
+
+          <div className="notes-actions">
+
+            {/* Search */}
+
+            <div className="search-box">
+              ⌕
+
+              <input
+                type="text"
+                placeholder="Search notes..."
+                value={query}
+                onChange={(e) =>
+                  setQuery(e.target.value)
+                }
+              />
+            </div>
+
+            {/* Add button */}
+
+            <button
+              className="square-add"
+              onClick={newNote}
+            >
+              ＋
+            </button>
+
+          </div>
+
+        </header>
+
+        {/* ================= NOTES LAYOUT ================= */}
+
+        <div className="notes-layout">
+
+          {/* ================= NOTE LIST ================= */}
+
+          <section className="note-list">
+
+            {filtered.length > 0 ? (
+
+              filtered.map((note) => (
+
+                <button
+                  key={note._id}
+                  className={`note-list-item ${
+                    selected?._id === note._id
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() =>
+                    setSelected(note)
+                  }
+                >
+
+                  <span className="note-dot" />
+
+                  <span>
+
+                    <strong>
+                      {note.title ||
+                        "Untitled note"}
+                    </strong>
+
+                    <small>
+                      {note.content ||
+                        "Empty note"}
+                    </small>
+
+                  </span>
+
+                </button>
+
+              ))
+
+            ) : (
+
+              <div className="empty-notes">
+
+                No notes yet.
+
+                <button onClick={newNote}>
+                  Create your first note →
+                </button>
+
+              </div>
+
+            )}
+
+          </section>
+
+          {/* ================= EDITOR ================= */}
+
+          <section className="note-editor">
+
+            {selected ? (
+
+              <>
+
+                {/* Toolbar */}
+
+                <div className="editor-toolbar">
+
+                  <span className="editor-status">
+                    {status ||
+                      "Ready to write"}
+                  </span>
+
+                  <div>
+
+                    <button onClick={save}>
+                      ✓ Save
+                    </button>
+
+                    <button
+                      className="delete-tool"
+                      onClick={remove}
+                    >
+                      Delete
+                    </button>
+
+                  </div>
+
+                </div>
+
+                {/* Title input */}
+
+                <input
+                  className="editor-title"
+                  type="text"
+                  value={selected.title || ""}
+                  onChange={(e) =>
+                    updateSelected(
+                      "title",
+                      e.target.value
+                    )
+                  }
+                  placeholder="Note title"
+                />
+
+                {/* Date */}
+
+                <div className="editor-date">
+
+                  Last updated{" "}
+
+                  {selected.updatedAt
+                    ? new Date(
+                        selected.updatedAt
+                      ).toLocaleString()
+                    : "Just now"}
+
+                </div>
+
+                {/* Textarea */}
+
+                <textarea
+                  className="editor-textarea"
+                  value={selected.content || ""}
+                  onChange={(e) =>
+                    updateSelected(
+                      "content",
+                      e.target.value
+                    )
+                  }
+                  placeholder="Start writing..."
+                />
+
+              </>
+
+            ) : (
+
+              /* Empty editor */
+
+              <div className="editor-empty">
+
+                <div>✦</div>
+
+                <h2>
+                  Your ideas belong here.
+                </h2>
+
+                <p>
+                  Create a note and start
+                  writing.
+                </p>
+
+                <button onClick={newNote}>
+                  Create note
+                </button>
+
+              </div>
+
+            )}
+
+          </section>
+
+        </div>
+
+      </main>
+
+    </div>
+  );
+}
