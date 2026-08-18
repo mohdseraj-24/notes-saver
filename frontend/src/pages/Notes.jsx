@@ -29,18 +29,24 @@ export default function Notes() {
 
       const data = await getNotes();
 
-      setNotes(Array.isArray(data) ? data : []);
+      const noteData = Array.isArray(data)
+        ? data
+        : Array.isArray(data.notes)
+        ? data.notes
+        : [];
+
+      setNotes(noteData);
 
       setSelected((current) => {
         if (current && current._id) {
           return (
-            data.find(
+            noteData.find(
               (note) => note._id === current._id
             ) || null
           );
         }
 
-        return data[0] || null;
+        return noteData[0] || null;
       });
 
       setStatus("");
@@ -50,18 +56,12 @@ export default function Notes() {
         error
       );
 
-      // Only logout for authentication errors
       if (
         error.status === 401 ||
         error.status === 403
       ) {
-        localStorage.removeItem(
-          "notes_token"
-        );
-
-        localStorage.removeItem(
-          "notes_user"
-        );
+        localStorage.removeItem("notes_token");
+        localStorage.removeItem("notes_user");
 
         navigate("/login", {
           replace: true,
@@ -70,10 +70,9 @@ export default function Notes() {
         return;
       }
 
-      // Don't logout for network/server errors
       setStatus(
         error.message ||
-          "Unable to load notes. Please try again."
+          "Unable to load notes."
       );
     }
   }
@@ -83,7 +82,7 @@ export default function Notes() {
   }, []);
 
   // =========================
-  // SEARCH NOTES
+  // SEARCH
   // =========================
 
   const filtered = useMemo(() => {
@@ -92,14 +91,14 @@ export default function Notes() {
       .trim();
 
     return notes.filter((note) =>
-      `${note.title || ""} ${note.content || ""}`
+      (note.title || "")
         .toLowerCase()
         .includes(search)
     );
   }, [notes, query]);
 
   // =========================
-  // CREATE NEW NOTE
+  // NEW NOTE
   // =========================
 
   function newNote() {
@@ -115,10 +114,13 @@ export default function Notes() {
   }
 
   // =========================
-  // UPDATE SELECTED NOTE
+  // CHANGE TITLE / CONTENT
   // =========================
 
-  function updateSelected(field, value) {
+  function updateSelected(
+    field,
+    value
+  ) {
     setSelected((current) => {
       if (!current) {
         return null;
@@ -134,7 +136,7 @@ export default function Notes() {
   }
 
   // =========================
-  // SAVE NOTE
+  // SAVE
   // =========================
 
   async function save() {
@@ -148,29 +150,29 @@ export default function Notes() {
     const content =
       selected.content.trim();
 
-    if (!title && !content) {
-      setStatus(
-        "Enter a title or note first"
-      );
+    if (!title) {
+      setStatus("Enter a heading first");
+      return;
+    }
 
+    if (!content) {
+      setStatus("Write something first");
       return;
     }
 
     try {
       setStatus("Saving...");
 
-      // =========================
       // NEW NOTE
-      // =========================
-
       if (
         !selected._id ||
         selected.isNew
       ) {
-        const data = await createNote(
-          title,
-          content
-        );
+        const data =
+          await createNote(
+            title,
+            content
+          );
 
         setNotes((prev) => [
           data,
@@ -180,10 +182,7 @@ export default function Notes() {
         setSelected(data);
       }
 
-      // =========================
-      // EXISTING NOTE
-      // =========================
-
+      // UPDATE NOTE
       else {
         const data =
           await updateNote(
@@ -216,7 +215,6 @@ export default function Notes() {
         error
       );
 
-      // Authentication error
       if (
         error.status === 401 ||
         error.status === 403
@@ -244,7 +242,7 @@ export default function Notes() {
   }
 
   // =========================
-  // DELETE NOTE
+  // DELETE
   // =========================
 
   async function remove() {
@@ -252,14 +250,12 @@ export default function Notes() {
       return;
     }
 
-    // New unsaved note
     if (!selected._id) {
       setSelected(
         notes[0] || null
       );
 
       setStatus("");
-
       return;
     }
 
@@ -296,7 +292,6 @@ export default function Notes() {
         error
       );
 
-      // Authentication error
       if (
         error.status === 401 ||
         error.status === 403
@@ -348,9 +343,7 @@ export default function Notes() {
   return (
     <div className="notes-app-shell">
 
-      {/* =========================
-          SIDEBAR
-      ========================= */}
+      {/* SIDEBAR */}
 
       <aside className="notes-sidebar">
 
@@ -407,9 +400,7 @@ export default function Notes() {
 
       </aside>
 
-      {/* =========================
-          MAIN CONTENT
-      ========================= */}
+      {/* MAIN */}
 
       <main className="notes-content">
 
@@ -429,10 +420,7 @@ export default function Notes() {
 
           <div className="notes-actions">
 
-            {/* SEARCH */}
-
             <div className="search-box">
-
               ⌕
 
               <input
@@ -445,14 +433,12 @@ export default function Notes() {
                   )
                 }
               />
-
             </div>
-
-            {/* ADD */}
 
             <button
               className="square-add"
               onClick={newNote}
+              title="New note"
             >
               ＋
             </button>
@@ -461,15 +447,11 @@ export default function Notes() {
 
         </header>
 
-        {/* =========================
-            NOTES LAYOUT
-        ========================= */}
+        {/* NOTES */}
 
         <div className="notes-layout">
 
-          {/* =========================
-              NOTE LIST
-          ========================= */}
+          {/* NOTE LIST */}
 
           <section className="note-list">
 
@@ -493,18 +475,10 @@ export default function Notes() {
 
                     <span className="note-dot" />
 
-                    <span>
-
-                      <strong>
-                        {note.title ||
-                          "Untitled note"}
-                      </strong>
-
-                      <small>
-                        {note.content ||
-                          "Empty note"}
-                      </small>
-
+                    {/* ONLY HEADING */}
+                    <span className="note-heading">
+                      {note.title ||
+                        "Untitled note"}
                     </span>
 
                   </button>
@@ -533,9 +507,7 @@ export default function Notes() {
 
           </section>
 
-          {/* =========================
-              EDITOR
-          ========================= */}
+          {/* EDITOR */}
 
           <section className="note-editor">
 
@@ -571,7 +543,7 @@ export default function Notes() {
 
                 </div>
 
-                {/* TITLE */}
+                {/* HEADING */}
 
                 <input
                   className="editor-title"
@@ -586,24 +558,21 @@ export default function Notes() {
                       e.target.value
                     )
                   }
-                  placeholder="Note title"
+                  placeholder="Note heading"
                 />
 
                 {/* DATE */}
 
                 <div className="editor-date">
-
                   Last updated{" "}
-
                   {selected.updatedAt
                     ? new Date(
                         selected.updatedAt
                       ).toLocaleString()
                     : "Just now"}
-
                 </div>
 
-                {/* CONTENT */}
+                {/* NOTE CONTENT */}
 
                 <textarea
                   className="editor-textarea"
@@ -617,28 +586,24 @@ export default function Notes() {
                       e.target.value
                     )
                   }
-                  placeholder="Start writing..."
+                  placeholder="Start writing your note..."
                 />
 
               </>
 
             ) : (
 
-              /* EMPTY EDITOR */
-
               <div className="editor-empty">
 
-                <div>
-                  ✦
-                </div>
+                <div>✦</div>
 
                 <h2>
                   Your ideas belong here.
                 </h2>
 
                 <p>
-                  Create a note and
-                  start writing.
+                  Click New note to start
+                  writing.
                 </p>
 
                 <button
