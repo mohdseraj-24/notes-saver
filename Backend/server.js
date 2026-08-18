@@ -4,7 +4,7 @@ const cors = require("cors");
 const app = express();
 
 // =========================
-// CORS CONFIGURATION
+// CORS
 // =========================
 
 const allowedOrigins = [
@@ -15,7 +15,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Allow requests with no origin
+      // Allow requests without an origin
       if (!origin) {
         return callback(null, true);
       }
@@ -45,9 +45,6 @@ app.use(
   })
 );
 
-// Handle browser preflight requests
-app.options("*", cors());
-
 // =========================
 // BODY PARSER
 // =========================
@@ -58,15 +55,7 @@ app.use(express.json());
 // ROUTES
 // =========================
 
-// Signup
-// POST https://notes-saver-bt4g.onrender.com/auth/signup
-
-// Login
-// POST https://notes-saver-bt4g.onrender.com/auth/login
-
 app.use("/auth", require("./routes/auth"));
-
-// Notes routes
 app.use("/notes", require("./routes/notes"));
 
 // =========================
