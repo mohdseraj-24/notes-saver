@@ -1,27 +1,201 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "http://localhost:5000";
 
-async function request(path, options = {}) {
-  const token = localStorage.getItem('notes_token');
-  const headers = { ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...(options.headers || {}) };
-  if (token) headers.Authorization = `Bearer ${token}`;
+// =========================
+// SIGNUP
+// =========================
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-  let data = {};
-  try { data = await res.json(); } catch {}
-  if (!res.ok) throw new Error(data.message || 'Something went wrong');
+export async function signup(
+  name,
+  email,
+  password
+) {
+  const response = await fetch(
+    `${API_URL}/auth/signup`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        name,
+        email,
+        password,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Signup failed"
+    );
+  }
+
   return data;
 }
 
-export const login = (email, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-export const signup = (name, email, password) => request('/auth/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) });
+// =========================
+// LOGIN
+// =========================
 
-export async function getNotes() { return request('/notes'); }
-export async function createNote(title, content) {
-  return request('/notes', { method: 'POST', body: JSON.stringify({ title, content }) });
+export async function login(
+  email,
+  password
+) {
+  const response = await fetch(
+    `${API_URL}/auth/login`,
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Login failed"
+    );
+  }
+
+  return data;
 }
-export async function updateNote(id, updates) {
-  return request(`/notes/${id}`, { method: 'PATCH', body: JSON.stringify(updates) });
+
+// =========================
+// GET NOTES
+// =========================
+
+export async function getNotes(token) {
+  const response = await fetch(
+    `${API_URL}/api/notes`,
+    {
+      method: "GET",
+
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to get notes"
+    );
+  }
+
+  return data;
 }
-export async function deleteNote(id) {
-  return request(`/notes/${id}`, { method: 'DELETE' });
+
+// =========================
+// CREATE NOTE
+// =========================
+
+export async function createNote(
+  token,
+  note
+) {
+  const response = await fetch(
+    `${API_URL}/api/notes`,
+    {
+      method: "POST",
+
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify(note),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to create note"
+    );
+  }
+
+  return data;
+}
+
+// =========================
+// UPDATE NOTE
+// =========================
+
+export async function updateNote(
+  token,
+  id,
+  note
+) {
+  const response = await fetch(
+    `${API_URL}/api/notes/${id}`,
+    {
+      method: "PUT",
+
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify(note),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to update note"
+    );
+  }
+
+  return data;
+}
+
+// =========================
+// DELETE NOTE
+// =========================
+
+export async function deleteNote(
+  token,
+  id
+) {
+  const response = await fetch(
+    `${API_URL}/api/notes/${id}`,
+    {
+      method: "DELETE",
+
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Failed to delete note"
+    );
+  }
+
+  return data;
 }

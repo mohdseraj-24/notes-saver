@@ -5,7 +5,6 @@ dns.setServers(["8.8.8.8", "1.1.1.1"]);
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-
 require("dotenv").config();
 
 const noteRoutes = require("./routes/noteRoutes");
@@ -29,10 +28,16 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests from Postman/server-side requests
+      if (!origin) {
         return callback(null, true);
       }
 
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.log("Blocked CORS origin:", origin);
       return callback(new Error("Not allowed by CORS"));
     },
 
@@ -55,7 +60,7 @@ app.use(
 );
 
 // =========================
-// JSON
+// BODY PARSER
 // =========================
 
 app.use(express.json());
@@ -77,6 +82,7 @@ app.get("/", (req, res) => {
 
 app.get("/api/health", (req, res) => {
   res.json({
+    success: true,
     api: "running",
     database:
       mongoose.connection.readyState === 1
@@ -88,8 +94,10 @@ app.get("/api/health", (req, res) => {
 // =========================
 // AUTH ROUTES
 // =========================
+//
 // POST /auth/signup
 // POST /auth/login
+//
 
 app.use(
   "/auth",
@@ -97,7 +105,7 @@ app.use(
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({
         message:
-          "Database unavailable. Check MongoDB Atlas Network Access and your MONGO_URI.",
+          "Database unavailable. Check MongoDB Atlas and MONGO_URI.",
       });
     }
 
@@ -109,7 +117,12 @@ app.use(
 // =========================
 // NOTES ROUTES
 // =========================
-// Keep your existing notes API
+//
+// GET    /api/notes
+// POST   /api/notes
+// PUT    /api/notes/:id
+// DELETE /api/notes/:id
+//
 
 app.use(
   "/api/notes",
@@ -117,7 +130,7 @@ app.use(
     if (mongoose.connection.readyState !== 1) {
       return res.status(503).json({
         message:
-          "Database unavailable. Check MongoDB Atlas Network Access and your MONGO_URI.",
+          "Database unavailable. Check MongoDB Atlas and MONGO_URI.",
       });
     }
 
@@ -127,34 +140,52 @@ app.use(
 );
 
 // =========================
-// ERROR HANDLER
+// 404 HANDLER
 // =========================
 
-app.use((err, req, res, next) => {
-  console.error(err);
-
-  res.status(
-    err.name === "ValidationError" ? 400 : 500
-  ).json({
-    message:
-      err.name === "ValidationError"
-        ? err.message
-        : "Server error",
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: `Route not found: ${req.method} ${req.originalUrl}`,
   });
 });
 
 // =========================
-// SERVER
+// ERROR HANDLER
+// =========================
+
+app.use((err, req, res, next) => {
+  console.error("Server Error:", err);
+
+  if (err.message === "Not allowed by CORS") {
+    return res.status(403).json({
+      success: false,
+      message: "CORS origin not allowed",
+    });
+  }
+
+  res.status(500).json({
+    success: false,
+    message: "Internal server error",
+  });
+});
+
+// =========================
+// PORT
 // =========================
 
 const PORT = process.env.PORT || 5000;
+
+// =========================
+// START SERVER
+// =========================
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
 // =========================
-// MONGODB
+// MONGODB CONNECTION
 // =========================
 
 mongoose
@@ -163,5 +194,5 @@ mongoose
     console.log("MongoDB connected");
   })
   .catch((err) => {
-    console.error("MongoDB error:", err.message);
+    console.error("MongoDB connection error:", err.message);
   });
