@@ -19,12 +19,17 @@ export default function Notes() {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState("");
 
-  // Load notes
+  // =========================
+  // LOAD NOTES
+  // =========================
+
   async function load() {
     try {
+      setStatus("Loading notes...");
+
       const data = await getNotes();
 
-      setNotes(data);
+      setNotes(Array.isArray(data) ? data : []);
 
       setSelected((current) => {
         if (current && current._id) {
@@ -37,10 +42,37 @@ export default function Notes() {
 
         return data[0] || null;
       });
+
+      setStatus("");
     } catch (error) {
       console.error("Failed to load notes:", error);
-      localStorage.clear();
-      navigate("/login");
+
+      /*
+       * IMPORTANT:
+       * Do NOT logout the user for every error.
+       *
+       * Only logout if the server says the token
+       * is invalid or unauthorized.
+       */
+
+      if (
+        error.status === 401 ||
+        error.status === 403
+      ) {
+        localStorage.removeItem("notes_token");
+        localStorage.removeItem("notes_user");
+
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      setStatus(
+        error.message ||
+          "Unable to load notes. Please try again."
+      );
     }
   }
 
@@ -48,9 +80,14 @@ export default function Notes() {
     load();
   }, []);
 
-  // Search notes
+  // =========================
+  // SEARCH
+  // =========================
+
   const filtered = useMemo(() => {
-    const search = query.toLowerCase().trim();
+    const search = query
+      .toLowerCase()
+      .trim();
 
     return notes.filter((note) =>
       `${note.title || ""} ${note.content || ""}`
@@ -59,8 +96,10 @@ export default function Notes() {
     );
   }, [notes, query]);
 
-  // Create NEW note
-  // This only opens an empty editor.
+  // =========================
+  // NEW NOTE
+  // =========================
+
   function newNote() {
     setSelected({
       _id: null,
@@ -73,7 +112,10 @@ export default function Notes() {
     setStatus("New note");
   }
 
-  // Update selected note locally
+  // =========================
+  // UPDATE SELECTED NOTE
+  // =========================
+
   function updateSelected(field, value) {
     setSelected((current) => {
       if (!current) return null;
@@ -87,7 +129,10 @@ export default function Notes() {
     setStatus("Unsaved changes");
   }
 
-  // Save note
+  // =========================
+  // SAVE NOTE
+  // =========================
+
   async function save() {
     if (!selected) return;
 
@@ -95,25 +140,37 @@ export default function Notes() {
     const content = selected.content.trim();
 
     if (!title && !content) {
-      setStatus("Enter a title or note first");
+      setStatus(
+        "Enter a title or note first"
+      );
       return;
     }
 
     try {
       setStatus("Saving...");
 
+      // =========================
       // NEW NOTE
+      // =========================
+
       if (!selected._id || selected.isNew) {
         const data = await createNote(
           title,
           content
         );
 
-        setNotes((prev) => [data, ...prev]);
+        setNotes((prev) => [
+          data,
+          ...prev,
+        ]);
+
         setSelected(data);
       }
 
+      // =========================
       // EXISTING NOTE
+      // =========================
+
       else {
         const data = await updateNote(
           selected._id,
@@ -140,53 +197,139 @@ export default function Notes() {
         setStatus("");
       }, 1400);
     } catch (error) {
-      console.error("Failed to save note:", error);
-      setStatus("Save failed");
+      console.error(
+        "Failed to save note:",
+        error
+      );
+
+      if (
+        error.status === 401 ||
+        error.status === 403
+      ) {
+        localStorage.removeItem(
+          "notes_token"
+        );
+
+        localStorage.removeItem(
+          "notes_user"
+        );
+
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      setStatus(
+        error.message ||
+          "Save failed"
+      );
     }
   }
 
-  // Delete note
+  // =========================
+  // DELETE NOTE
+  // =========================
+
   async function remove() {
     if (!selected) return;
 
-    // If it is a new unsaved note,
-    // simply close the editor.
+    // New unsaved note
     if (!selected._id) {
-      setSelected(notes[0] || null);
+      setSelected(
+        notes[0] || null
+      );
+
       setStatus("");
       return;
     }
 
-    if (!window.confirm("Delete this note?")) {
+    if (
+      !window.confirm(
+        "Delete this note?"
+      )
+    ) {
       return;
     }
 
     try {
-      await deleteNote(selected._id);
-
-      const remaining = notes.filter(
-        (note) => note._id !== selected._id
+      await deleteNote(
+        selected._id
       );
 
+      const remaining =
+        notes.filter(
+          (note) =>
+            note._id !==
+            selected._id
+        );
+
       setNotes(remaining);
-      setSelected(remaining[0] || null);
+
+      setSelected(
+        remaining[0] || null
+      );
+
       setStatus("");
     } catch (error) {
-      console.error("Failed to delete note:", error);
+      console.error(
+        "Failed to delete note:",
+        error
+      );
+
+      if (
+        error.status === 401 ||
+        error.status === 403
+      ) {
+        localStorage.removeItem(
+          "notes_token"
+        );
+
+        localStorage.removeItem(
+          "notes_user"
+        );
+
+        navigate("/login", {
+          replace: true,
+        });
+
+        return;
+      }
+
+      setStatus(
+        error.message ||
+          "Delete failed"
+      );
     }
   }
 
-  // Logout
+  // =========================
+  // LOGOUT
+  // =========================
+
   function logout() {
-    localStorage.clear();
-    navigate("/login");
+    localStorage.removeItem(
+      "notes_token"
+    );
+
+    localStorage.removeItem(
+      "notes_user"
+    );
+
+    navigate("/login", {
+      replace: true,
+    });
   }
+
+  // =========================
+  // UI
+  // =========================
 
   return (
     <div className="notes-app-shell">
 
-      {/* ================= SIDEBAR ================= */}
-
+      {/* SIDEBAR */}
       <aside className="notes-sidebar">
 
         <div className="app-logo">
@@ -206,7 +349,8 @@ export default function Notes() {
         </div>
 
         <button className="all-notes-button">
-          ▤ All notes <b>{notes.length}</b>
+          ▤ All notes{" "}
+          <b>{notes.length}</b>
         </button>
 
         <div className="sidebar-bottom">
@@ -214,7 +358,8 @@ export default function Notes() {
           <div className="user-profile">
 
             <div className="avatar">
-              {(user.name || "U")[0].toUpperCase()}
+              {(user.name || "U")[0]
+                .toUpperCase()}
             </div>
 
             <div>
@@ -237,14 +382,10 @@ export default function Notes() {
           </div>
 
         </div>
-
       </aside>
 
-      {/* ================= MAIN ================= */}
-
+      {/* MAIN */}
       <main className="notes-content">
-
-        {/* Top bar */}
 
         <header className="notes-topbar">
 
@@ -258,8 +399,6 @@ export default function Notes() {
 
           <div className="notes-actions">
 
-            {/* Search */}
-
             <div className="search-box">
               ⌕
 
@@ -268,12 +407,12 @@ export default function Notes() {
                 placeholder="Search notes..."
                 value={query}
                 onChange={(e) =>
-                  setQuery(e.target.value)
+                  setQuery(
+                    e.target.value
+                  )
                 }
               />
             </div>
-
-            {/* Add button */}
 
             <button
               className="square-add"
@@ -286,75 +425,68 @@ export default function Notes() {
 
         </header>
 
-        {/* ================= NOTES LAYOUT ================= */}
-
         <div className="notes-layout">
 
-          {/* ================= NOTE LIST ================= */}
-
+          {/* NOTE LIST */}
           <section className="note-list">
 
             {filtered.length > 0 ? (
+              filtered.map(
+                (note) => (
+                  <button
+                    key={note._id}
+                    className={`note-list-item ${
+                      selected?._id ===
+                      note._id
+                        ? "active"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      setSelected(note)
+                    }
+                  >
 
-              filtered.map((note) => (
+                    <span className="note-dot" />
 
-                <button
-                  key={note._id}
-                  className={`note-list-item ${
-                    selected?._id === note._id
-                      ? "active"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    setSelected(note)
-                  }
-                >
+                    <span>
 
-                  <span className="note-dot" />
+                      <strong>
+                        {note.title ||
+                          "Untitled note"}
+                      </strong>
 
-                  <span>
+                      <small>
+                        {note.content ||
+                          "Empty note"}
+                      </small>
 
-                    <strong>
-                      {note.title ||
-                        "Untitled note"}
-                    </strong>
+                    </span>
 
-                    <small>
-                      {note.content ||
-                        "Empty note"}
-                    </small>
-
-                  </span>
-
-                </button>
-
-              ))
-
+                  </button>
+                )
+              )
             ) : (
-
               <div className="empty-notes">
 
                 No notes yet.
 
-                <button onClick={newNote}>
-                  Create your first note →
+                <button
+                  onClick={newNote}
+                >
+                  Create your first
+                  note →
                 </button>
 
               </div>
-
             )}
 
           </section>
 
-          {/* ================= EDITOR ================= */}
-
+          {/* EDITOR */}
           <section className="note-editor">
 
             {selected ? (
-
               <>
-
-                {/* Toolbar */}
 
                 <div className="editor-toolbar">
 
@@ -365,7 +497,9 @@ export default function Notes() {
 
                   <div>
 
-                    <button onClick={save}>
+                    <button
+                      onClick={save}
+                    >
                       ✓ Save
                     </button>
 
@@ -380,12 +514,13 @@ export default function Notes() {
 
                 </div>
 
-                {/* Title input */}
-
                 <input
                   className="editor-title"
                   type="text"
-                  value={selected.title || ""}
+                  value={
+                    selected.title ||
+                    ""
+                  }
                   onChange={(e) =>
                     updateSelected(
                       "title",
@@ -395,25 +530,21 @@ export default function Notes() {
                   placeholder="Note title"
                 />
 
-                {/* Date */}
-
                 <div className="editor-date">
-
                   Last updated{" "}
-
                   {selected.updatedAt
                     ? new Date(
                         selected.updatedAt
                       ).toLocaleString()
                     : "Just now"}
-
                 </div>
-
-                {/* Textarea */}
 
                 <textarea
                   className="editor-textarea"
-                  value={selected.content || ""}
+                  value={
+                    selected.content ||
+                    ""
+                  }
                   onChange={(e) =>
                     updateSelected(
                       "content",
@@ -424,11 +555,7 @@ export default function Notes() {
                 />
 
               </>
-
             ) : (
-
-              /* Empty editor */
-
               <div className="editor-empty">
 
                 <div>✦</div>
@@ -442,12 +569,13 @@ export default function Notes() {
                   writing.
                 </p>
 
-                <button onClick={newNote}>
+                <button
+                  onClick={newNote}
+                >
                   Create note
                 </button>
 
               </div>
-
             )}
 
           </section>
@@ -455,7 +583,6 @@ export default function Notes() {
         </div>
 
       </main>
-
     </div>
   );
 }
