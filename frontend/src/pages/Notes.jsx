@@ -586,3 +586,16 @@ export default function Notes() {
     </div>
   );
 }
+if (
+  error.status === 401 ||
+  error.status === 403
+) {
+  localStorage.removeItem("notes_token");
+  localStorage.removeItem("notes_user");
+
+  navigate("/login", {
+    replace: true,
+  });
+
+  return;
+}

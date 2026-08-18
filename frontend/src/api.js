@@ -3,6 +3,37 @@ const API_URL =
   "http://localhost:5000";
 
 // =========================
+// HELPER
+// =========================
+
+function getToken() {
+  return localStorage.getItem("notes_token");
+}
+
+async function handleResponse(response) {
+  let data = {};
+
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    const error = new Error(
+      data.message ||
+        `Request failed with status ${response.status}`
+    );
+
+    error.status = response.status;
+
+    throw error;
+  }
+
+  return data;
+}
+
+// =========================
 // SIGNUP
 // =========================
 
@@ -28,15 +59,7 @@ export async function signup(
     }
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Signup failed"
-    );
-  }
-
-  return data;
+  return handleResponse(response);
 }
 
 // =========================
@@ -63,22 +86,26 @@ export async function login(
     }
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Login failed"
-    );
-  }
-
-  return data;
+  return handleResponse(response);
 }
 
 // =========================
 // GET NOTES
 // =========================
 
-export async function getNotes(token) {
+export async function getNotes() {
+  const token = getToken();
+
+  if (!token) {
+    const error = new Error(
+      "Authentication token not found."
+    );
+
+    error.status = 401;
+
+    throw error;
+  }
+
   const response = await fetch(
     `${API_URL}/api/notes`,
     {
@@ -91,15 +118,7 @@ export async function getNotes(token) {
     }
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Failed to get notes"
-    );
-  }
-
-  return data;
+  return handleResponse(response);
 }
 
 // =========================
@@ -107,9 +126,21 @@ export async function getNotes(token) {
 // =========================
 
 export async function createNote(
-  token,
-  note
+  title,
+  content
 ) {
+  const token = getToken();
+
+  if (!token) {
+    const error = new Error(
+      "Authentication token not found."
+    );
+
+    error.status = 401;
+
+    throw error;
+  }
+
   const response = await fetch(
     `${API_URL}/api/notes`,
     {
@@ -120,19 +151,14 @@ export async function createNote(
         "Content-Type": "application/json",
       },
 
-      body: JSON.stringify(note),
+      body: JSON.stringify({
+        title,
+        content,
+      }),
     }
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Failed to create note"
-    );
-  }
-
-  return data;
+  return handleResponse(response);
 }
 
 // =========================
@@ -140,10 +166,21 @@ export async function createNote(
 // =========================
 
 export async function updateNote(
-  token,
   id,
   note
 ) {
+  const token = getToken();
+
+  if (!token) {
+    const error = new Error(
+      "Authentication token not found."
+    );
+
+    error.status = 401;
+
+    throw error;
+  }
+
   const response = await fetch(
     `${API_URL}/api/notes/${id}`,
     {
@@ -158,25 +195,26 @@ export async function updateNote(
     }
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Failed to update note"
-    );
-  }
-
-  return data;
+  return handleResponse(response);
 }
 
 // =========================
 // DELETE NOTE
 // =========================
 
-export async function deleteNote(
-  token,
-  id
-) {
+export async function deleteNote(id) {
+  const token = getToken();
+
+  if (!token) {
+    const error = new Error(
+      "Authentication token not found."
+    );
+
+    error.status = 401;
+
+    throw error;
+  }
+
   const response = await fetch(
     `${API_URL}/api/notes/${id}`,
     {
@@ -189,13 +227,5 @@ export async function deleteNote(
     }
   );
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || "Failed to delete note"
-    );
-  }
-
-  return data;
+  return handleResponse(response);
 }
