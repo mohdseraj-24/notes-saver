@@ -45,22 +45,23 @@ export default function Notes() {
 
       setStatus("");
     } catch (error) {
-      console.error("Failed to load notes:", error);
+      console.error(
+        "Failed to load notes:",
+        error
+      );
 
-      /*
-       * IMPORTANT:
-       * Do NOT logout the user for every error.
-       *
-       * Only logout if the server says the token
-       * is invalid or unauthorized.
-       */
-
+      // Only logout for authentication errors
       if (
         error.status === 401 ||
         error.status === 403
       ) {
-        localStorage.removeItem("notes_token");
-        localStorage.removeItem("notes_user");
+        localStorage.removeItem(
+          "notes_token"
+        );
+
+        localStorage.removeItem(
+          "notes_user"
+        );
 
         navigate("/login", {
           replace: true,
@@ -69,6 +70,7 @@ export default function Notes() {
         return;
       }
 
+      // Don't logout for network/server errors
       setStatus(
         error.message ||
           "Unable to load notes. Please try again."
@@ -81,7 +83,7 @@ export default function Notes() {
   }, []);
 
   // =========================
-  // SEARCH
+  // SEARCH NOTES
   // =========================
 
   const filtered = useMemo(() => {
@@ -97,7 +99,7 @@ export default function Notes() {
   }, [notes, query]);
 
   // =========================
-  // NEW NOTE
+  // CREATE NEW NOTE
   // =========================
 
   function newNote() {
@@ -118,7 +120,9 @@ export default function Notes() {
 
   function updateSelected(field, value) {
     setSelected((current) => {
-      if (!current) return null;
+      if (!current) {
+        return null;
+      }
 
       return {
         ...current,
@@ -134,15 +138,21 @@ export default function Notes() {
   // =========================
 
   async function save() {
-    if (!selected) return;
+    if (!selected) {
+      return;
+    }
 
-    const title = selected.title.trim();
-    const content = selected.content.trim();
+    const title =
+      selected.title.trim();
+
+    const content =
+      selected.content.trim();
 
     if (!title && !content) {
       setStatus(
         "Enter a title or note first"
       );
+
       return;
     }
 
@@ -153,7 +163,10 @@ export default function Notes() {
       // NEW NOTE
       // =========================
 
-      if (!selected._id || selected.isNew) {
+      if (
+        !selected._id ||
+        selected.isNew
+      ) {
         const data = await createNote(
           title,
           content
@@ -172,13 +185,14 @@ export default function Notes() {
       // =========================
 
       else {
-        const data = await updateNote(
-          selected._id,
-          {
-            title,
-            content,
-          }
-        );
+        const data =
+          await updateNote(
+            selected._id,
+            {
+              title,
+              content,
+            }
+          );
 
         setNotes((prev) =>
           prev.map((note) =>
@@ -202,6 +216,7 @@ export default function Notes() {
         error
       );
 
+      // Authentication error
       if (
         error.status === 401 ||
         error.status === 403
@@ -233,7 +248,9 @@ export default function Notes() {
   // =========================
 
   async function remove() {
-    if (!selected) return;
+    if (!selected) {
+      return;
+    }
 
     // New unsaved note
     if (!selected._id) {
@@ -242,6 +259,7 @@ export default function Notes() {
       );
 
       setStatus("");
+
       return;
     }
 
@@ -278,6 +296,7 @@ export default function Notes() {
         error
       );
 
+      // Authentication error
       if (
         error.status === 401 ||
         error.status === 403
@@ -329,7 +348,10 @@ export default function Notes() {
   return (
     <div className="notes-app-shell">
 
-      {/* SIDEBAR */}
+      {/* =========================
+          SIDEBAR
+      ========================= */}
+
       <aside className="notes-sidebar">
 
         <div className="app-logo">
@@ -382,10 +404,16 @@ export default function Notes() {
           </div>
 
         </div>
+
       </aside>
 
-      {/* MAIN */}
+      {/* =========================
+          MAIN CONTENT
+      ========================= */}
+
       <main className="notes-content">
+
+        {/* TOP BAR */}
 
         <header className="notes-topbar">
 
@@ -394,12 +422,17 @@ export default function Notes() {
               YOUR WORKSPACE
             </p>
 
-            <h1>All notes</h1>
+            <h1>
+              All notes
+            </h1>
           </div>
 
           <div className="notes-actions">
 
+            {/* SEARCH */}
+
             <div className="search-box">
+
               ⌕
 
               <input
@@ -412,7 +445,10 @@ export default function Notes() {
                   )
                 }
               />
+
             </div>
+
+            {/* ADD */}
 
             <button
               className="square-add"
@@ -425,14 +461,23 @@ export default function Notes() {
 
         </header>
 
+        {/* =========================
+            NOTES LAYOUT
+        ========================= */}
+
         <div className="notes-layout">
 
-          {/* NOTE LIST */}
+          {/* =========================
+              NOTE LIST
+          ========================= */}
+
           <section className="note-list">
 
             {filtered.length > 0 ? (
+
               filtered.map(
                 (note) => (
+
                   <button
                     key={note._id}
                     className={`note-list-item ${
@@ -463,12 +508,17 @@ export default function Notes() {
                     </span>
 
                   </button>
+
                 )
               )
+
             ) : (
+
               <div className="empty-notes">
 
-                No notes yet.
+                <p>
+                  No notes yet.
+                </p>
 
                 <button
                   onClick={newNote}
@@ -478,15 +528,22 @@ export default function Notes() {
                 </button>
 
               </div>
+
             )}
 
           </section>
 
-          {/* EDITOR */}
+          {/* =========================
+              EDITOR
+          ========================= */}
+
           <section className="note-editor">
 
             {selected ? (
+
               <>
+
+                {/* TOOLBAR */}
 
                 <div className="editor-toolbar">
 
@@ -514,6 +571,8 @@ export default function Notes() {
 
                 </div>
 
+                {/* TITLE */}
+
                 <input
                   className="editor-title"
                   type="text"
@@ -530,14 +589,21 @@ export default function Notes() {
                   placeholder="Note title"
                 />
 
+                {/* DATE */}
+
                 <div className="editor-date">
+
                   Last updated{" "}
+
                   {selected.updatedAt
                     ? new Date(
                         selected.updatedAt
                       ).toLocaleString()
                     : "Just now"}
+
                 </div>
+
+                {/* CONTENT */}
 
                 <textarea
                   className="editor-textarea"
@@ -555,18 +621,24 @@ export default function Notes() {
                 />
 
               </>
+
             ) : (
+
+              /* EMPTY EDITOR */
+
               <div className="editor-empty">
 
-                <div>✦</div>
+                <div>
+                  ✦
+                </div>
 
                 <h2>
                   Your ideas belong here.
                 </h2>
 
                 <p>
-                  Create a note and start
-                  writing.
+                  Create a note and
+                  start writing.
                 </p>
 
                 <button
@@ -576,6 +648,7 @@ export default function Notes() {
                 </button>
 
               </div>
+
             )}
 
           </section>
@@ -583,19 +656,7 @@ export default function Notes() {
         </div>
 
       </main>
+
     </div>
   );
-}
-if (
-  error.status === 401 ||
-  error.status === 403
-) {
-  localStorage.removeItem("notes_token");
-  localStorage.removeItem("notes_user");
-
-  navigate("/login", {
-    replace: true,
-  });
-
-  return;
 }
